@@ -2,59 +2,96 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
-import smtplib, ssl
-from email.message import EmailMessage
+from streamlit.components.v1 import html
 
-# ✅ ADD THIS BLOCK BELOW:
+# ==============================
+# ✅ PAGE CONFIG (Required for iOS + App Icon)
+# ==============================
 st.set_page_config(
     page_title="IT Stock Request",
-    page_icon="📦",  # fallback icon
+    page_icon="📦",
     layout="centered"
 )
 
-st.markdown("""
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/zegaffer/it-stock-request/main/icon-180.png">
-""", unsafe_allow_html=True)
+# Inject Apple iOS PWA metadata and custom icon
+html("""
+<script>
+(function() {
+  const head = document.head;
 
+  // Enable Add to Home Screen
+  const meta1 = document.createElement('meta');
+  meta1.name = 'apple-mobile-web-app-capable';
+  meta1.content = 'yes';
+  head.appendChild(meta1);
+
+  const meta2 = document.createElement('meta');
+  meta2.name = 'apple-mobile-web-app-status-bar-style';
+  meta2.content = 'black-translucent';
+  head.appendChild(meta2);
+
+  // Set custom icon (with cache buster)
+  const link = document.createElement('link');
+  link.rel = 'apple-touch-icon';
+  link.sizes = '180x180';
+  link.href = 'https://raw.githubusercontent.com/zegaffer/it-stock-request/main/icon-180.png?v=2';
+  head.appendChild(link);
+})();
+</script>
+""", height=0)
+
+# ==============================
+# 🧾 APP TITLE
+# ==============================
 st.title("📦 IT Stock Request Form")
 
-# Dropdown list of available items
-items = ["Laptop - Lenovo T14", "Monitor 24-inch", "Keyboard", "Mouse", "Docking Station", "MacBook Air M4"]
+# ==============================
+# 🧍 USER INPUT FORM
+# ==============================
+items = [
+    "Laptop - Lenovo T14",
+    "Monitor 24-inch",
+    "Keyboard",
+    "Mouse",
+    "Docking Station",
+    "MacBook Air M4"
+]
 
 item_selected = st.selectbox("Select the item you need:", items)
-quantity = st.number_input("Enter quantity:", min_value=1, step=1)
+quantity = st.number_input("Enter quantity:", min_value=1, value=1, step=1)
 requester_name = st.text_input("Your Name:")
 office = st.text_input("Office Location (e.g., Tunis, Lima, Bucharest):")
 
+# ==============================
+# 💾 PROCESS FORM SUBMISSION
+# ==============================
 if st.button("Submit Request"):
-    # Save the request into an Excel file
-    new_request = pd.DataFrame({
-        "Requester": [requester_name],
-        "Office": [office],
-        "Item": [item_selected],
-        "Quantity": [quantity]
-    })
-    
-    try:
-        # Append to existing Excel
-        existing_data = pd.read_excel("stock_requests.xlsx")
-        updated_data = pd.concat([existing_data, new_request], ignore_index=True)
-        updated_data.to_excel("stock_requests.xlsx", index=False)
-        st.success("✅ Request submitted and saved to Excel!")
-    except:
-        # Create a new Excel file if not exists
-        new_request.to_excel("stock_requests.xlsx", index=False)
-        st.success("✅ Request submitted and new Excel file created!")
 
-    st.write("📄 Here is your submitted request:")
-    st.table(new_request)
-import streamlit as st
+    if not requester_name or not office:
+        st.error("⚠️ Please fill in all fields before submitting.")
+    else:
+        new_request = pd.DataFrame({
+            "Timestamp": [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+            "Requester": [requester_name],
+            "Office": [office],
+            "Item": [item_selected],
+            "Quantity": [quantity]
+        })
 
-st.set_page_config(
-    page_title="IT Stock Request",
-    page_icon="📦",  # fallback icon
-    layout="centered"
-)
-st.title("📦 IT Stock Request Form")
+        file_path = "stock_requests.xlsx"
+
+        try:
+            if Path(file_path).exists():
+                existing_data = pd.read_excel(file_path)
+                updated_data = pd.concat([existing_data, new_request], ignore_index=True)
+                updated_data.to_excel(file_path, index=False)
+            else:
+                new_request.to_excel(file_path, index=False)
+
+            st.success("✅ Request submitted successfully!")
+        except Exception as e:
+            st.error(f"❌ Error saving request: {e}")
+
+        # Display the submitted data
+        st.write("📄 **Here is your submitted request:**")
+        st.table(new_request)
