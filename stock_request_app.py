@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
-from streamlit.components.v1 import html
+import smtplib, ssl
+from email.message import EmailMessage
 
 # ==============================
 # ✅ PAGE CONFIG with iOS App Icon
@@ -14,67 +15,36 @@ st.set_page_config(
 )
 
 # ==============================
-# 🌗 iOS Dark/Light status bar + safe-area support
-# (adds meta tags into <head> and uses prefers-color-scheme)
+# ✉️ Email helper
 # ==============================
-html("""
-<script>
-(function () {
-  const head = document.head;
+def send_email(subject: str, body: str) -> tuple[bool, str]:
+    try:
+        cfg = st.secrets["email"]
+        msg = EmailMessage()
+        msg["From"] = cfg["sender"]
+        msg["To"] = cfg["to"]
+        if cfg.get("cc"):
+            msg["Cc"] = cfg["cc"]
+        msg["Subject"] = subject
+        msg.set_content(body)
 
-  // iOS standalone
-  const cap = document.createElement('meta');
-  cap.name = 'apple-mobile-web-app-capable';
-  cap.content = 'yes';
-  head.appendChild(cap);
+        context = ssl.create_default_context()
+        with smtplib.SMTP(cfg["smtp_server"], int(cfg.get("smtp_port", 587))) as server:
+            server.starttls(context=context)
+            server.login(cfg["sender"], cfg["password"])
+            server.send_message(msg)
 
-  // Match status bar to system theme
-  const bar = document.createElement('meta');
-  bar.name = 'apple-mobile-web-app-status-bar-style';
-  // 'black' looks best on modern iPhones (auto-contrasts with dark mode)
-  bar.content = 'black';
-  head.appendChild(bar);
-
-  // Theme color for Safari toolbar (non-standalone)
-  const theme = document.createElement('meta');
-  theme.name = 'theme-color';
-  theme.content = window.matchMedia('(prefers-color-scheme: dark)').matches ? '#0b0b0c' : '#ffffff';
-  head.appendChild(theme);
-
-  // Respect the notch/safe areas
-  const viewport = document.createElement('meta');
-  viewport.name = 'viewport';
-  viewport.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
-  head.appendChild(viewport);
-})();
-</script>
-<style>
-  /* Ensure content isn't hidden under the notch/home indicator */
-  .main, .block-container {
-    padding-top: calc(env(safe-area-inset-top,0px) + 0.4rem) !important;
-    padding-bottom: calc(env(safe-area-inset-bottom,0px) + 0.6rem) !important;
-  }
-</style>
-""", height=0)
+        return True, "Email sent."
+    except Exception as e:
+        return False, f"Email error: {e}"
 
 # ==============================
-# 🔁 "Offline-friendly" input memory (persists for the session)
-# ==============================
-if "defaults" not in st.session_state:
-    st.session_state.defaults = {
-        "item": "Laptop - Lenovo T14",
-        "qty": 1,
-        "name": "",
-        "office": ""
-    }
-
-# ==============================
-# 🧾 APP TITLE
+# 🧾 Title
 # ==============================
 st.title("📦 IT Stock Request Form")
 
 # ==============================
-# 🧍 USER INPUT FORM
+# 🧍 Form
 # ==============================
 items = [
     "Laptop - Lenovo T14",
@@ -85,30 +55,13 @@ items = [
     "MacBook Air M4"
 ]
 
-item_selected = st.selectbox(
-    "Select the item you need:",
-    items,
-    index=items.index(st.session_state.defaults["item"])
-)
-quantity = st.number_input(
-    "Enter quantity:", min_value=1, value=int(st.session_state.defaults["qty"]), step=1
-)
-requester_name = st.text_input("Your Name:", value=st.session_state.defaults["name"])
-office = st.text_input(
-    "Office Location (e.g., Tunis, Lima, Bucharest):",
-    value=st.session_state.defaults["office"]
-)
-
-# keep latest values (so if the app reloads, fields repopulate)
-st.session_state.defaults.update({
-    "item": item_selected,
-    "qty": int(quantity),
-    "name": requester_name,
-    "office": office
-})
+item_selected = st.selectbox("Select the item you need:", items)
+quantity = st.number_input("Enter quantity:", min_value=1, value=1, step=1)
+requester_name = st.text_input("Your Name:")
+office = st.text_input("Office Location (e.g., Tunis, Lima, Bucharest):")
 
 # ==============================
-# 💾 PROCESS FORM SUBMISSION
+# 💾 Submit
 # ==============================
 if st.button("Submit Request"):
     if not requester_name or not office:
@@ -123,7 +76,6 @@ if st.button("Submit Request"):
         })
 
         file_path = "stock_requests.xlsx"
-
         try:
             if Path(file_path).exists():
                 existing_data = pd.read_excel(file_path)
@@ -133,6 +85,23 @@ if st.button("Submit Request"):
                 new_request.to_excel(file_path, index=False)
 
             st.success("✅ Request submitted successfully!")
+
+            # -------- Email notification --------
+            subject = f"[IT Stock] {requester_name} requested {quantity} × {item_selected}"
+            body = (
+                "New IT Stock Request\n\n"
+                f"Requester : {requester_name}\n"
+                f"Office    : {office}\n"
+                f"Item      : {item_selected}\n"
+                f"Quantity  : {quantity}\n"
+                f"Timestamp : {new_request.iloc[0]['Timestamp']}\n"
+            )
+            ok, msg = send_email(subject, body)
+            if ok:
+                st.info("📧 Notification email sent.")
+            else:
+                st.warning(f"📧 {msg}")
+
         except Exception as e:
             st.error(f"❌ Error saving request: {e}")
 
