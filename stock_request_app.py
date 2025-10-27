@@ -2,43 +2,15 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
-from streamlit.components.v1 import html
 
 # ==============================
-# ✅ PAGE CONFIG (Required for iOS + App Icon)
+# ✅ PAGE CONFIG with iOS App Icon
 # ==============================
 st.set_page_config(
     page_title="IT Stock Request",
-    page_icon="📦",
+    page_icon="https://raw.githubusercontent.com/zegaffer/it-stock-request/main/icon-180.png",  # ✅ Custom icon for iOS
     layout="centered"
 )
-
-# Inject Apple iOS PWA metadata and custom icon
-html("""
-<script>
-(function() {
-  const head = document.head;
-
-  // Enable Add to Home Screen
-  const meta1 = document.createElement('meta');
-  meta1.name = 'apple-mobile-web-app-capable';
-  meta1.content = 'yes';
-  head.appendChild(meta1);
-
-  const meta2 = document.createElement('meta');
-  meta2.name = 'apple-mobile-web-app-status-bar-style';
-  meta2.content = 'black-translucent';
-  head.appendChild(meta2);
-
-  // Set custom icon (with cache buster)
-  const link = document.createElement('link');
-  link.rel = 'apple-touch-icon';
-  link.sizes = '180x180';
-  link.href = 'https://raw.githubusercontent.com/zegaffer/it-stock-request/main/icon-180.png?v=2';
-  head.appendChild(link);
-})();
-</script>
-""", height=0)
 
 # ==============================
 # 🧾 APP TITLE
@@ -95,3 +67,4 @@ if st.button("Submit Request"):
         # Display the submitted data
         st.write("📄 **Here is your submitted request:**")
         st.table(new_request)
+
