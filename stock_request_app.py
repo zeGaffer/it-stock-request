@@ -1,5 +1,22 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
+from pathlib import Path
+import smtplib, ssl
+from email.message import EmailMessage
+
+# ✅ ADD THIS BLOCK BELOW:
+st.set_page_config(
+    page_title="IT Stock Request",
+    page_icon="📦",  # fallback icon
+    layout="centered"
+)
+
+st.markdown("""
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/zegaffer/it-stock-request/main/icon-180.png">
+""", unsafe_allow_html=True)
 
 st.title("📦 IT Stock Request Form")
 
@@ -33,3 +50,11 @@ if st.button("Submit Request"):
 
     st.write("📄 Here is your submitted request:")
     st.table(new_request)
+import streamlit as st
+
+st.set_page_config(
+    page_title="IT Stock Request",
+    page_icon="📦",  # fallback icon
+    layout="centered"
+)
+st.title("📦 IT Stock Request Form")
